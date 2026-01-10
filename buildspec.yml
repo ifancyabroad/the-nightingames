@@ -18,7 +18,7 @@ phases:
         commands:
             - aws s3 cp --recursive --acl public-read ./dist s3://the-nightingames-en/
             - aws s3 cp --acl public-read --cache-control="max-age=0, no-cache, no-store, must-revalidate" ./dist/index.html s3://the-nightingames-en/
-            - aws cloudfront create-invalidation --distribution-id EFCDTMN1ZPM50 --paths /index.html
+            - aws cloudfront create-invalidation --distribution-id E1QW89M7BVQ42Z --paths /index.html
 artifacts:
     files:
         - "dist/*"
