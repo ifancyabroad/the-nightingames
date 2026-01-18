@@ -44,7 +44,12 @@ export function usePlayerEntries(playerId: string) {
 export function usePlayerPageStats(playerId: string) {
 	const entries = usePlayerEntries(playerId);
 	const { gameById } = useGames();
-	return useMemo(() => aggregatePlayerStatsForPage(entries, gameById), [entries, gameById]);
+	const { events } = useEvents();
+	const { results } = useResults();
+	return useMemo(
+		() => aggregatePlayerStatsForPage(playerId, entries, gameById, events, results),
+		[playerId, entries, gameById, events, results],
+	);
 }
 
 export function usePlayerStreaks(playerId: string) {

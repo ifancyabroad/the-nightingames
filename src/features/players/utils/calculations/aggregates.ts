@@ -1,8 +1,10 @@
 import type { PlayerEntry, GameWinRateRow, PlayerAggregates } from "features/players/types";
 import type { IGame } from "features/games/types";
+import type { IEvent, IResult } from "features/events/types";
 import { isPlayerWinner } from "common/utils/gameHelpers";
 import { calculateWinRatePercent } from "common/utils/calculations";
 import { getColorForGame, getDisplayName } from "features/games/utils/helpers";
+import { sortEventsByDate } from "common/utils/sorting";
 import { STATS_THRESHOLDS, DISPLAY_LIMITS } from "common/utils/constants";
 
 interface GameStatsAccumulator {
@@ -111,19 +113,73 @@ function findMostPoints(gameWinRates: GameWinRateRow[]): GameWinRateRow | undefi
 }
 
 /**
+ * Build recent form series (points from recent events)
+ */
+function buildRecentFormSeries(
+	playerId: string,
+	events: IEvent[],
+	results: IResult[],
+	gameById: Map<string, IGame>,
+	recentWindow: number,
+): Array<{ x: number; points: number | null }> {
+	const sortedEvents = sortEventsByDate(events, true); // Sort descending (newest first)
+	const recentEvents = sortedEvents.slice(0, recentWindow);
+
+	const formData = recentEvents.map((event) => {
+		let eventPoints = 0;
+		let playerAttended = false;
+
+		results.forEach((result) => {
+			if (result.eventId !== event.id) return;
+
+			const game = gameById.get(result.gameId);
+			if (!game) return;
+
+			const playerResult = result.playerResults.find((pr) => pr.playerId === playerId);
+			if (!playerResult) return;
+
+			playerAttended = true;
+
+			if (isPlayerWinner(playerResult)) {
+				eventPoints += game.points;
+			}
+			if (playerResult.isLoser) {
+				eventPoints -= game.points;
+			}
+		});
+
+		return playerAttended ? eventPoints : null;
+	});
+
+	// Reverse to get oldest first, then map with index
+	return formData
+		.reverse()
+		.map((points, i) => ({
+			x: i + 1,
+			points,
+		}))
+		.filter((d) => d.points !== null); // Only include events where player attended
+}
+
+/**
  * Aggregate player statistics for page display
  */
 export function aggregatePlayerStatsForPage(
+	playerId: string,
 	entries: PlayerEntry[],
 	gameById: Map<string, IGame>,
-	opts: { bestGameMinSamples?: number; recentWindow?: number } = {},
+	events: IEvent[],
+	results: IResult[],
+	opts: { bestGameMinSamples?: number; recentWindow?: number; recentFormWindow?: number } = {},
 ): PlayerAggregates {
 	const bestGameMinSamples = opts.bestGameMinSamples ?? STATS_THRESHOLDS.MIN_GAMES_FOR_BEST_GAME;
 	const recentWindow = opts.recentWindow ?? DISPLAY_LIMITS.CHARTS.RECENT_GAMES;
+	const recentFormWindow = opts.recentFormWindow ?? DISPLAY_LIMITS.CHARTS.RECENT_FORM_EVENTS;
 
 	const gameWinRates = buildGameWinRates(entries, gameById);
 	const rankCounts = buildRankCounts(entries);
 	const winRateSeries = buildWinRateSeries(entries, recentWindow);
+	const recentFormSeries = buildRecentFormSeries(playerId, events, results, gameById, recentFormWindow);
 
 	const bestGame = findBestGame(gameWinRates, bestGameMinSamples);
 	const mostPlayed = findMostPlayed(gameWinRates);
@@ -141,5 +197,6 @@ export function aggregatePlayerStatsForPage(
 		gameWinRates,
 		rankCounts,
 		lastGamesSeries,
+		recentFormSeries,
 	};
 }

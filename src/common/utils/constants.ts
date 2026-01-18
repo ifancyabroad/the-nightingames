@@ -29,6 +29,8 @@ export const DISPLAY_LIMITS = {
 		MOST_PLAYED_GAMES: 8,
 		/** Recent games window - number of games in recent form/win rate charts */
 		RECENT_GAMES: 20,
+		/** Recent form chart - number of events to display */
+		RECENT_FORM_EVENTS: 5,
 		/** Player win rates chart - number of players to display */
 		PLAYER_WIN_RATES: 8,
 		/** Game difficulty/competitiveness chart - number of games to display */

@@ -60,6 +60,7 @@ export interface PlayerAggregates {
 	gameWinRates: GameWinRateRow[];
 	rankCounts: Array<{ rank: number; count: number }>;
 	lastGamesSeries: Array<{ x: number; wr: number }>;
+	recentFormSeries: Array<{ x: number; points: number | null }>;
 }
 
 export interface PlayerStreaks {

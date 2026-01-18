@@ -9,26 +9,26 @@ interface RecentFormChartProps {
 }
 
 export const RecentFormChart: React.FC<RecentFormChartProps> = ({ playerId }) => {
-	const { lastGamesSeries } = usePlayerPageStats(playerId);
+	const { recentFormSeries } = usePlayerPageStats(playerId);
 	const { playerById } = usePlayers();
 	const player = playerById.get(playerId);
 	const color = getColorForPlayer(player);
 
 	return (
 		<ChartCard
-			title="Recent Form (last 20 games)"
-			isEmpty={lastGamesSeries.length === 0}
-			emptyTitle="No recent games"
-			emptyDescription="Play at least one game to see recent form"
+			title="Recent Form (last 5 events)"
+			isEmpty={recentFormSeries.length === 0}
+			emptyTitle="No recent events"
+			emptyDescription="Attend at least one event to see recent form"
 		>
 			<ResponsiveContainer width="100%" height="100%">
-				<LineChart data={lastGamesSeries} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
+				<LineChart data={recentFormSeries} margin={{ top: 10, right: 20, left: 20, bottom: 10 }}>
 					<CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
 					<XAxis
 						dataKey="x"
 						tick={{ fill: "var(--color-text-secondary)", fontSize: 12 }}
 						label={{
-							value: "Game",
+							value: "Event",
 							position: "insideBottom",
 							offset: -5,
 							fill: "var(--color-text-secondary)",
@@ -36,10 +36,9 @@ export const RecentFormChart: React.FC<RecentFormChartProps> = ({ playerId }) =>
 						}}
 					/>
 					<YAxis
-						domain={[0, 100]}
 						tick={{ fill: "var(--color-text-secondary)", fontSize: 12 }}
 						label={{
-							value: "Win Rate",
+							value: "Points",
 							angle: -90,
 							position: "center",
 							style: { textAnchor: "middle" },
@@ -48,9 +47,9 @@ export const RecentFormChart: React.FC<RecentFormChartProps> = ({ playerId }) =>
 						}}
 					/>
 					<Tooltip
-						content={<ChartTooltip formatter={(v) => `${v}%`} labelFormatter={(v) => `Game ${v}`} />}
+						content={<ChartTooltip formatter={(v) => `${v} pts`} labelFormatter={(v) => `Event ${v}`} />}
 					/>
-					<Line type="monotone" dataKey="wr" stroke={color} strokeWidth={2} dot={false} />
+					<Line type="monotone" dataKey="points" stroke={color} strokeWidth={2} dot={true} />
 				</LineChart>
 			</ResponsiveContainer>
 		</ChartCard>
