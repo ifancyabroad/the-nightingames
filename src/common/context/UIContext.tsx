@@ -6,9 +6,6 @@ interface IUIContext {
 	toggleSidebar: () => void;
 	openSidebar: () => void;
 	closeSidebar: () => void;
-	selectedYear: number | null;
-	setSelectedYear: (year: number | null) => void;
-	availableYears: number[];
 	theme: Theme;
 	updateTheme: (theme: Theme) => void;
 	toggleTheme: () => void;

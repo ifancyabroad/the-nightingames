@@ -3,7 +3,9 @@ import { useSortedEvents, useSortedResults } from "features/events/utils/hooks";
 import { useResults } from "features/events/context/ResultsContext";
 import { usePlayers } from "features/players/context/PlayersContext";
 import { useGames } from "features/games/context/GamesContext";
+import { useEvents } from "features/events/context/EventsContext";
 import { getLastEventTopScorers, getLongestDrought } from "./calculations";
+import { getLeaderboardByTypeAndYear } from "features/leaderboard/utils/calculations";
 import type { IPointScorer, ILongestDrought } from "./calculations";
 
 /**
@@ -29,4 +31,20 @@ export function useLongestDrought(): ILongestDrought | null {
 	const { playerById } = usePlayers();
 
 	return useMemo(() => getLongestDrought(sortedResults, playerById), [sortedResults, playerById]);
+}
+
+/**
+ * Get leaderboard for current year board games (default dashboard leaderboard)
+ */
+export function useCurrentYearBoardGamesLeaderboard() {
+	const currentYear = new Date().getFullYear();
+	const { players } = usePlayers();
+	const { results } = useResults();
+	const { events } = useEvents();
+	const { gameById } = useGames();
+
+	return useMemo(
+		() => getLeaderboardByTypeAndYear(players, results, events, gameById, "board", currentYear),
+		[players, results, events, gameById, currentYear],
+	);
 }

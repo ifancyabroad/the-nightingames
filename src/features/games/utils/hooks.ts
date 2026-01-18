@@ -4,15 +4,15 @@ import type { GameWithData } from "features/games/types";
 import { useGames } from "features/games/context/GamesContext";
 import { usePlayers } from "features/players/context/PlayersContext";
 import { useEvents } from "features/events/context/EventsContext";
+import { useResults } from "features/events/context/ResultsContext";
 import { useSortedResults } from "features/events/utils/hooks";
-import { useFilteredData } from "common/utils/hooks";
 
 /**
  * Get all games with computed data
  */
 export function useGameData(): GameWithData[] {
 	const { games } = useGames();
-	const { results } = useFilteredData();
+	const { results } = useResults();
 	return useMemo(() => computeGameData(games, results), [games, results]);
 }
 

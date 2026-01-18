@@ -2,8 +2,11 @@ import React from "react";
 import { Link } from "react-router";
 import { Trophy, BarChart3, Calendar, TrendingUp, TrendingDown, Swords, ArrowRight } from "lucide-react";
 import { useCurrentPlayer } from "features/players/utils/hooks";
-import { usePlayerLeaderboard } from "features/leaderboard/utils/hooks";
-import { useLastEventTopScorers, useLongestDrought } from "features/dashboard/utils/hooks";
+import {
+	useLastEventTopScorers,
+	useLongestDrought,
+	useCurrentYearBoardGamesLeaderboard,
+} from "features/dashboard/utils/hooks";
 import { useSortedEvents } from "features/events/utils/hooks";
 import { useTopRivalries } from "features/stats/utils/hooks";
 import { LeaderCard } from "features/dashboard/components/LeaderCard";
@@ -15,21 +18,23 @@ import { pluralize } from "common/utils/helpers";
 export const HomePage: React.FC = () => {
 	const linkedPlayer = useCurrentPlayer();
 	const welcomeName = linkedPlayer ? getDisplayName(linkedPlayer) : null;
-	// Leaderboard data (current year)
-	const leaderboard = usePlayerLeaderboard();
-	const topThree = leaderboard.slice(0, 3);
+	const currentYear = new Date().getFullYear();
+
+	// Get current year board games leaderboard (default dashboard leaderboard)
+	const currentYearBoardGamesLeaderboard = useCurrentYearBoardGamesLeaderboard();
+	const topThree = currentYearBoardGamesLeaderboard.slice(0, 3);
 
 	// Recent activity
 	const sortedEvents = useSortedEvents();
 	const latestEvents = sortedEvents.slice(0, 3);
 
-	// Insights
+	// Insights (these use all-time data)
 	const topScorers = useLastEventTopScorers();
 	const longestDrought = useLongestDrought();
 	const topRivalries = useTopRivalries();
 	const topRivalry = topRivalries.length > 0 ? topRivalries[0] : null;
 
-	const hasData = leaderboard.length > 0;
+	const hasData = currentYearBoardGamesLeaderboard.length > 0;
 
 	return (
 		<div className="mx-auto max-w-6xl">
@@ -57,10 +62,12 @@ export const HomePage: React.FC = () => {
 				</EmptyState>
 			) : (
 				<div className="space-y-6 sm:space-y-8">
-					{/* Current Year Leaders */}
+					{/* Current Year Board Games Leaders */}
 					<section>
 						<div className="mb-4 flex items-center justify-between">
-							<h2 className="text-base font-bold text-[var(--color-text)] md:text-lg">Current Leaders</h2>
+							<h2 className="text-base font-bold text-[var(--color-text)] md:text-lg">
+								Current Leaders ({currentYear} Board Games)
+							</h2>
 							<Link
 								to="/leaderboard"
 								className="flex items-center gap-1 text-sm font-medium text-[var(--color-primary)] hover:underline"
@@ -77,7 +84,9 @@ export const HomePage: React.FC = () => {
 							</div>
 						) : (
 							<Card className="p-6 text-center">
-								<p className="text-sm text-[var(--color-text-secondary)]">No data for current year</p>
+								<p className="text-sm text-[var(--color-text-secondary)]">
+									No board game results for {currentYear} yet
+								</p>
 							</Card>
 						)}
 					</section>

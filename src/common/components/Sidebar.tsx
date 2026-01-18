@@ -8,7 +8,6 @@ import {
 	X,
 	LogIn,
 	User,
-	CalendarRange,
 	Sun,
 	Moon,
 	Trophy,
@@ -17,7 +16,7 @@ import {
 } from "lucide-react";
 import { useUI } from "common/context/UIContext";
 import { useModal } from "common/context/ModalContext";
-import { LoginForm, Select, Button, Label, SegmentedControl } from "common/components";
+import { LoginForm, Button, SegmentedControl } from "common/components";
 import type { SegmentedControlOption } from "common/components/SegmentedControl";
 import { useAuth } from "common/context/AuthContext";
 import { Link } from "react-router";
@@ -43,7 +42,7 @@ const themeOptions: SegmentedControlOption<Theme>[] = [
 ];
 
 export const Sidebar: React.FC = () => {
-	const { isSidebarOpen, closeSidebar, selectedYear, setSelectedYear, availableYears, theme, updateTheme } = useUI();
+	const { isSidebarOpen, closeSidebar, theme, updateTheme } = useUI();
 	const { openModal, closeModal } = useModal();
 	const { authUser, user, isAdmin } = useAuth();
 
@@ -107,30 +106,6 @@ export const Sidebar: React.FC = () => {
 						<X size={20} />
 					</button>
 				</div>
-
-				{availableYears.length > 0 && (
-					<>
-						<div className="mb-4">
-							<Label htmlFor="year-filter">Year</Label>
-							<Select
-								id="year-filter"
-								icon={CalendarRange}
-								value={selectedYear ?? "all"}
-								onChange={(e) =>
-									setSelectedYear(e.target.value === "all" ? null : Number(e.target.value))
-								}
-							>
-								<option value="all">All Years</option>
-								{availableYears.map((year) => (
-									<option key={year} value={year}>
-										{year}
-									</option>
-								))}
-							</Select>
-						</div>
-						<div className="mb-4 border-t border-[var(--color-border)]" />
-					</>
-				)}
 
 				<nav className="flex flex-col gap-1">
 					{navItems.map(({ to, label, icon: Icon }) => (

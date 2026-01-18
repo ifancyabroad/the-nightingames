@@ -5,8 +5,8 @@ import type { PlayerWithData } from "features/players/types";
 import { useGames } from "features/games/context/GamesContext";
 import { usePlayers } from "features/players/context/PlayersContext";
 import { useSortedResults } from "features/events/utils/hooks";
-import { useFilteredData } from "common/utils/hooks";
 import { useEvents } from "features/events/context/EventsContext";
+import { useResults } from "features/events/context/ResultsContext";
 import type { GameType } from "features/games/types";
 
 /**
@@ -22,7 +22,7 @@ export function useCurrentPlayer() {
 
 export function usePlayerData(gameType?: GameType): PlayerWithData[] {
 	const { players } = usePlayers();
-	const { results } = useFilteredData();
+	const { results } = useResults();
 	const { events } = useEvents();
 	const { gameById } = useGames();
 	return useMemo(

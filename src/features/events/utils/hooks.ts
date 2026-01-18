@@ -4,18 +4,17 @@ import { sortResultsChronologically, sortEventsByDate } from "common/utils/sorti
 import type { IResult, IEvent } from "features/events/types";
 import { useEvents } from "features/events/context/EventsContext";
 import { useResults } from "features/events/context/ResultsContext";
-import { useFilteredData } from "common/utils/hooks";
 import { usePlayers } from "features/players/context/PlayersContext";
 import { useGames } from "features/games/context/GamesContext";
 
 export function useSortedResults(): IResult[] {
-	const { results } = useFilteredData();
+	const { results } = useResults();
 	const { eventById } = useEvents();
 	return useMemo(() => sortResultsChronologically(results, eventById), [results, eventById]);
 }
 
 export function useSortedEvents(): IEvent[] {
-	const { events } = useFilteredData();
+	const { events } = useEvents();
 	return useMemo(() => sortEventsByDate(events, true), [events]);
 }
 
