@@ -73,13 +73,13 @@ export const GameForm: React.FC<IGameFormProps> = ({ initialData, onSubmit }) =>
 						label="Board Game"
 						value="board"
 						checked={typeValue === "board"}
-						onChange={(e) => setValue("type", e.target.value as GameType)}
+						onChange={(e) => setValue("type", e.target.value as GameType, { shouldDirty: true })}
 					/>
 					<Radio
 						label="Video Game"
 						value="video"
 						checked={typeValue === "video"}
-						onChange={(e) => setValue("type", e.target.value as GameType)}
+						onChange={(e) => setValue("type", e.target.value as GameType, { shouldDirty: true })}
 					/>
 				</div>
 				{errors.type && <ErrorMessage>{errors.type.message}</ErrorMessage>}
@@ -89,7 +89,7 @@ export const GameForm: React.FC<IGameFormProps> = ({ initialData, onSubmit }) =>
 				<ColorPicker
 					label="Game colour"
 					value={colorValue}
-					onChange={(newColor) => setValue("color", newColor)}
+					onChange={(newColor) => setValue("color", newColor, { shouldDirty: true })}
 					showInput
 				/>
 				{errors.color && <ErrorMessage>{errors.color.message}</ErrorMessage>}
