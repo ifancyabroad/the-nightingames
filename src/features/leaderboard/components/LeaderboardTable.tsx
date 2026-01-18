@@ -37,12 +37,29 @@ const formatFormValue = (points: number | null) => {
 	return points.toString();
 };
 
+const trimTrailingNulls = (arr: (number | null)[]) => {
+	let lastNonNullIndex = -1;
+	for (let i = arr.length - 1; i >= 0; i--) {
+		if (arr[i] !== null) {
+			lastNonNullIndex = i;
+			break;
+		}
+	}
+	return lastNonNullIndex === -1 ? [] : arr.slice(0, lastNonNullIndex + 1);
+};
+
 export const LeaderboardTable: React.FC<{
 	leaderboard: PlayerWithData[];
 	championships: Map<string, number[]>;
 }> = ({ leaderboard, championships }) => {
 	const scrollRef = useRef<HTMLDivElement>(null);
 	const [scrollState, setScrollState] = useState({ isScrolled: false, canScrollRight: false });
+
+	// Calculate max form length across all players
+	const maxFormLength = leaderboard.reduce((max, player) => {
+		const trimmed = trimTrailingNulls(player.data.recentForm);
+		return Math.max(max, trimmed.length);
+	}, 0);
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -163,9 +180,9 @@ export const LeaderboardTable: React.FC<{
 									{/* Form Column */}
 									<td className="border-b border-[var(--color-border)] px-3 py-3 text-center sm:px-4">
 										<div className="flex items-center justify-center gap-1">
-											{row.data.recentForm.length > 0 ? (
+											{maxFormLength > 0 ? (
 												row.data.recentForm
-													.slice()
+													.slice(0, maxFormLength)
 													.reverse()
 													.map((points, idx) => (
 														<span

@@ -4,7 +4,7 @@ import type { IResult, IEvent } from "features/events/types";
 import type { IGame, GameType } from "features/games/types";
 import { STATS_THRESHOLDS } from "common/utils/constants";
 import { sortLeaderboard } from "common/utils/sorting";
-import { filterResultsByYear } from "common/utils/yearFilter";
+import { filterResultsByYear, filterEventsByYear } from "common/utils/yearFilter";
 import { computePlayerData } from "features/players/utils/calculations";
 
 /**
@@ -36,7 +36,8 @@ export function getLeaderboardByTypeAndYear(
 	gameType: GameType,
 	year: number | null,
 ): PlayerWithData[] {
-	// Filter results by year
+	// Filter events and results by year
+	const eventsFiltered = filterEventsByYear(events, year);
 	const yearFiltered = filterResultsByYear(results, events, year);
 
 	// Filter by game type
@@ -45,7 +46,7 @@ export function getLeaderboardByTypeAndYear(
 		return game?.type === gameType;
 	});
 
-	// Compute player data and leaderboard
-	const playerData = computePlayerData(players, typeFiltered, gameById, events, gameType);
+	// Compute player data and leaderboard using year-filtered events
+	const playerData = computePlayerData(players, typeFiltered, gameById, eventsFiltered, gameType);
 	return getLeaderboard(playerData);
 }
