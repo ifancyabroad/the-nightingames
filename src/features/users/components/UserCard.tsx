@@ -32,8 +32,10 @@ export function UserCard({ user, onEdit, onDelete, canEdit }: UserCardProps) {
 						</div>
 					)}
 					<div className="min-w-0 flex-1">
-						<h3 className="truncate text-lg font-semibold">{displayName}</h3>
-						<p className="truncate text-sm text-[var(--color-text-muted)]">{user.email}</p>
+						<h3 className="truncate text-sm font-bold text-[var(--color-text)] md:text-base">
+							{displayName}
+						</h3>
+						<p className="truncate text-xs text-[var(--color-text-secondary)]">{user.email}</p>
 						<div className="mt-2 flex flex-wrap items-center gap-2">
 							<Badge variant={getRoleBadgeVariant(user.role)}>{getRoleLabel(user.role)}</Badge>
 							{linkedPlayer && (
