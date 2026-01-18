@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useResults } from "features/events/context/ResultsContext";
@@ -40,10 +40,33 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 		return games.filter((g) => set.has(g.id));
 	}, [games, allowedGameIds]);
 
-	// Default playerResults for form
+	// Default playerResults for form - always includes all event players
 	const defaultPlayerResults =
 		initialData?.playerResults ||
 		eventPlayerIds.map((id) => ({ playerId: id, rank: null, isWinner: false, isLoser: false }));
+
+	// Track which players are included (checked) in the result
+	const [included, setIncluded] = useState<Record<string, boolean>>(() => {
+		if (initialData) {
+			const present = new Set(initialData.playerResults.map((r) => r.playerId));
+			return Object.fromEntries(eventPlayerIds.map((id) => [id, present.has(id)]));
+		}
+		return Object.fromEntries(eventPlayerIds.map((id) => [id, true]));
+	});
+
+	// Remember initial included state to detect changes
+	const initialIncludedState = useMemo(() => {
+		if (initialData) {
+			const present = new Set(initialData.playerResults.map((r) => r.playerId));
+			return Object.fromEntries(eventPlayerIds.map((id) => [id, present.has(id)]));
+		}
+		return Object.fromEntries(eventPlayerIds.map((id) => [id, true]));
+	}, [initialData, eventPlayerIds]);
+
+	// Check if included state has changed
+	const includedHasChanged = useMemo(() => {
+		return eventPlayerIds.some((id) => included[id] !== initialIncludedState[id]);
+	}, [included, initialIncludedState, eventPlayerIds]);
 
 	const {
 		register,
@@ -65,18 +88,29 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 	const gameId = watch("gameId");
 	const playerResults = watch("playerResults");
 
+	const handlePlayerToggle = (playerId: string, checked: boolean) => {
+		setIncluded((m) => ({ ...m, [playerId]: checked }));
+	};
+
 	const getPlayer = (id: string) => playerById.get(id);
 
 	const isEditMode = !!initialData;
-	const isSubmitDisabled = isSubmitting || !filteredGames.length || !gameId || (isEditMode && !isDirty);
+	const isSubmitDisabled =
+		isSubmitting || !filteredGames.length || !gameId || (isEditMode && !isDirty && !includedHasChanged);
 
 	const onFormSubmit = async (data: ResultFormData) => {
 		try {
+			// Filter out unchecked players before submitting
+			const filteredData = {
+				...data,
+				playerResults: data.playerResults.filter((pr) => included[pr.playerId]),
+			};
+
 			if (initialData) {
-				await editResult(initialData.id, data);
+				await editResult(initialData.id, filteredData);
 				toast.success("Result updated successfully");
 			} else {
-				await addResult(data);
+				await addResult(filteredData);
 				toast.success("Result added successfully");
 			}
 			onSuccess?.();
@@ -151,19 +185,22 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 					{playerResults.map((pr, idx) => {
 						const p = getPlayer(pr.playerId);
 						const name = getDisplayName(p);
+						const isIncluded = !!included[pr.playerId];
 						return (
 							<Controller
 								key={pr.playerId}
 								control={control}
 								name={`playerResults.${idx}`}
 								render={({ field }) => (
-									<div className="rounded-md bg-[var(--color-accent)] p-3">
+									<div
+										className={`rounded-md bg-[var(--color-accent)] p-3 ${isIncluded ? "" : "opacity-60"}`}
+									>
 										<div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
 											<label className="flex items-center gap-2 text-sm whitespace-nowrap text-[var(--color-text)]">
 												<input
 													type="checkbox"
-													checked={field.value.playerId === pr.playerId}
-													readOnly
+													checked={isIncluded}
+													onChange={(e) => handlePlayerToggle(pr.playerId, e.target.checked)}
 													className="h-4 w-4 accent-[var(--color-primary)]"
 												/>
 												{name}
@@ -187,6 +224,7 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 													fullWidth={false}
 													className="w-12 text-center tabular-nums"
 													placeholder="#"
+													disabled={!isIncluded}
 												/>
 											</div>
 
@@ -198,6 +236,7 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 														field.onChange({ ...field.value, isWinner: e.target.checked })
 													}
 													className="h-4 w-4 accent-[var(--color-success)]"
+													disabled={!isIncluded}
 												/>
 												Win
 											</label>
@@ -209,6 +248,7 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 														field.onChange({ ...field.value, isLoser: e.target.checked })
 													}
 													className="h-4 w-4 accent-[var(--color-danger)]"
+													disabled={!isIncluded}
 												/>
 												Lose
 											</label>
