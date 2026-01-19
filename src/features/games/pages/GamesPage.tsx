@@ -65,6 +65,24 @@ const GamesPage: React.FC = () => {
 		);
 	};
 
+	const boardGames = games.filter((game) => game.type === "board");
+	const videoGames = games.filter((game) => game.type === "video");
+
+	const renderGameGrid = (gamesList: IGame[]) => (
+		<ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+			{gamesList.map((game) => (
+				<li key={game.id} className="transition-transform hover:-translate-y-0.5">
+					<GameCard
+						game={game}
+						canEdit={isAdmin}
+						onEdit={() => handleEdit(game)}
+						onDelete={() => handleDelete(game)}
+					/>
+				</li>
+			))}
+		</ul>
+	);
+
 	return (
 		<div className="mx-auto max-w-6xl">
 			<PageHeader
@@ -85,18 +103,20 @@ const GamesPage: React.FC = () => {
 					No games yet. {isAdmin ? "Add your first game to get started." : "Check back later."}
 				</EmptyState>
 			) : (
-				<ul className="grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
-					{games.map((game) => (
-						<li key={game.id} className="transition-transform hover:-translate-y-0.5">
-							<GameCard
-								game={game}
-								canEdit={isAdmin}
-								onEdit={() => handleEdit(game)}
-								onDelete={() => handleDelete(game)}
-							/>
-						</li>
-					))}
-				</ul>
+				<div className="space-y-8">
+					{boardGames.length > 0 && (
+						<section>
+							<h2 className="mb-4 text-lg font-semibold text-white/90">Board Games</h2>
+							{renderGameGrid(boardGames)}
+						</section>
+					)}
+					{videoGames.length > 0 && (
+						<section>
+							<h2 className="mb-4 text-lg font-semibold text-white/90">Video Games</h2>
+							{renderGameGrid(videoGames)}
+						</section>
+					)}
+				</div>
 			)}
 		</div>
 	);
