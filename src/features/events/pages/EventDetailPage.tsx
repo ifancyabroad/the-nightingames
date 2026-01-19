@@ -85,33 +85,12 @@ export const EventDetailPage: React.FC = () => {
 
 	const handleAddResult = () => {
 		if (!event) return;
-		openModal(
-			<ResultForm
-				eventId={event.id}
-				games={games}
-				playerById={playerById}
-				eventPlayerIds={event.playerIds}
-				allowedGameIds={event.gameIds}
-				numOfResults={eventResults.length}
-				onSuccess={closeModal}
-			/>,
-		);
+		openModal(<ResultForm eventId={event.id} onSuccess={closeModal} />);
 	};
 
 	const handleEditResult = (result: IResult) => {
 		if (!event) return;
-		openModal(
-			<ResultForm
-				initialData={result}
-				eventId={event.id}
-				games={games}
-				playerById={playerById}
-				eventPlayerIds={event.playerIds}
-				allowedGameIds={event.gameIds}
-				numOfResults={eventResults.length}
-				onSuccess={closeModal}
-			/>,
-		);
+		openModal(<ResultForm initialData={result} eventId={event.id} onSuccess={closeModal} />);
 	};
 
 	const handleDeleteResult = (resultId: string) => {

@@ -2,43 +2,45 @@ import { useMemo, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useResults } from "features/events/context/ResultsContext";
-import type { IPlayer } from "features/players/types";
+import { useGames } from "features/games/context/GamesContext";
+import { usePlayers } from "features/players/context/PlayersContext";
 import type { IResult } from "features/events/types";
-import type { IGame } from "features/games/types";
-import { Gamepad2, Target } from "lucide-react";
+import { Gamepad2, Target, Plus } from "lucide-react";
 import { getDisplayName } from "features/players/utils/helpers";
 import { Button, Select, Label, Input, ErrorMessage } from "common/components";
 import { useToast } from "common/context/ToastContext";
 import { resultSchema, type ResultFormData } from "common/utils/validation";
+import { AddGameToEventModal } from "./AddGameToEventModal";
+import { useEvents } from "features/events/context/EventsContext";
 
 interface ResultFormProps {
 	eventId: string;
-	games: IGame[];
-	playerById: Map<string, IPlayer>;
-	onSuccess?: () => void;
 	initialData?: IResult;
-	eventPlayerIds: string[];
-	allowedGameIds?: string[];
-	numOfResults: number;
+	onSuccess?: () => void;
 }
 
-export const ResultForm: React.FC<ResultFormProps> = ({
-	eventId,
-	games,
-	playerById,
-	onSuccess,
-	initialData,
-	eventPlayerIds,
-	allowedGameIds,
-	numOfResults,
-}) => {
-	const { addResult, editResult } = useResults();
+export const ResultForm: React.FC<ResultFormProps> = ({ eventId, initialData, onSuccess }) => {
+	const { addResult, editResult, results } = useResults();
+	const { games } = useGames();
+	const { playerById } = usePlayers();
 	const toast = useToast();
+	const { eventById } = useEvents();
+	const [showAddGame, setShowAddGame] = useState(false);
+
+	// Get live event data from context for real-time updates
+	const event = eventById.get(eventId);
+
+	// Compute derived data from context
+	const eventPlayerIds = useMemo(() => event?.playerIds || [], [event]);
+	const eventResults = results.filter((r) => r.eventId === eventId);
+	const numOfResults = eventResults.length;
+
+	// Use event.gameIds directly for real-time updates when games are added
 	const filteredGames = useMemo(() => {
-		if (!Array.isArray(allowedGameIds) || allowedGameIds.length === 0) return [] as IGame[];
-		const set = new Set(allowedGameIds);
+		if (!event || !Array.isArray(event.gameIds) || event.gameIds.length === 0) return [];
+		const set = new Set(event.gameIds);
 		return games.filter((g) => set.has(g.id));
-	}, [games, allowedGameIds]);
+	}, [games, event]);
 
 	// Default playerResults for form - always includes all event players
 	const defaultPlayerResults =
@@ -73,6 +75,7 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 		handleSubmit,
 		watch,
 		control,
+		setValue,
 		formState: { errors, isDirty, isSubmitting },
 	} = useForm<ResultFormData>({
 		resolver: zodResolver(resultSchema),
@@ -90,6 +93,15 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 
 	const handlePlayerToggle = (playerId: string, checked: boolean) => {
 		setIncluded((m) => ({ ...m, [playerId]: checked }));
+	};
+
+	const handleAddGameClick = () => {
+		setShowAddGame(true);
+	};
+
+	const handleGameAdded = (gameId: string) => {
+		setValue("gameId", gameId, { shouldDirty: true, shouldValidate: true });
+		setShowAddGame(false);
 	};
 
 	const getPlayer = (id: string) => playerById.get(id);
@@ -120,6 +132,10 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 		}
 	};
 
+	if (!event) {
+		return <div className="p-4 text-center text-[var(--color-text-secondary)]">Event not found</div>;
+	}
+
 	return (
 		<form onSubmit={handleSubmit(onFormSubmit)} className="m-0 flex flex-col gap-4 p-0">
 			<div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
@@ -130,20 +146,57 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 			</div>
 
 			<div>
-				<div className="flex items-center justify-between gap-4">
+				<div className="flex items-start justify-between gap-4">
 					<div className="min-w-0 flex-1">
-						<Select label="Game" icon={Gamepad2} {...register("gameId")} disabled={!filteredGames.length}>
-							{!filteredGames.length ? (
-								<option value="">No games added to this event</option>
-							) : (
-								filteredGames.map((g) => (
-									<option key={g.id} value={g.id}>
-										{g.name}
-									</option>
-								))
+						<div className="relative">
+							<div className="flex items-end gap-0">
+								<div className="flex-1">
+									<Select
+										label="Game"
+										icon={Gamepad2}
+										{...register("gameId")}
+										disabled={!filteredGames.length}
+										className="rounded-r-none border-r-0"
+									>
+										{!filteredGames.length ? (
+											<option value="">No games added to this event</option>
+										) : (
+											filteredGames.map((g) => (
+												<option key={g.id} value={g.id}>
+													{g.name}
+												</option>
+											))
+										)}
+									</Select>
+								</div>
+								<button
+									type="button"
+									onClick={handleAddGameClick}
+									className="flex h-[38px] items-center justify-center rounded-r-lg border border-[var(--color-border)] bg-[var(--color-primary)] px-3 text-[var(--color-primary-contrast)] transition-colors hover:opacity-90 focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-offset-2 focus:outline-none"
+									title="Add game to event"
+								>
+									<Plus className="h-4 w-4" />
+								</button>
+							</div>
+							{errors.gameId && <ErrorMessage>{errors.gameId.message}</ErrorMessage>}
+
+							{showAddGame && (
+								<div className="absolute top-full right-0 left-0 z-10 mt-1">
+									<AddGameToEventModal
+										event={event}
+										games={games}
+										onGameAdded={handleGameAdded}
+										onClose={() => setShowAddGame(false)}
+									/>
+								</div>
 							)}
-						</Select>
-						{errors.gameId && <ErrorMessage>{errors.gameId.message}</ErrorMessage>}
+
+							{!filteredGames.length && !showAddGame && (
+								<p className="mt-2 text-xs text-[var(--color-warning)]">
+									This event doesn't have any games yet. Click the + button to add one.
+								</p>
+							)}
+						</div>
 					</div>
 
 					<div>
@@ -159,12 +212,6 @@ export const ResultForm: React.FC<ResultFormProps> = ({
 						{errors.order && <ErrorMessage>{errors.order.message}</ErrorMessage>}
 					</div>
 				</div>
-
-				{!filteredGames.length && (
-					<p className="mt-2 text-xs text-[var(--color-warning)]">
-						This event doesn't have any games yet. Add a game to the event to create a result.
-					</p>
-				)}
 			</div>
 
 			<div>
