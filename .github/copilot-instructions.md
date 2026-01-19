@@ -1,10 +1,20 @@
 # Game Tracker - AI Coding Agent Instructions
 
+## Core Principles
+
+**CLEAN CODE IS PARAMOUNT**: Every change must prioritize code quality, maintainability, and adherence to established patterns. Code should be self-documenting, easy to understand, and ready for change.
+
+**MODULARITY**: Keep logic isolated and reusable. Each component, function, and module should have a single, clear responsibility.
+
+**CONSISTENCY**: Follow existing patterns religiously. If a pattern exists, use it. Don't reinvent wheels or create isolated solutions.
+
+**UI COHESION**: The entire application must feel like a unified, professional product. Colors, spacing, typography, and component behavior must be consistent across all pages and features.
+
 ## Architecture Overview
 
 **React + TypeScript + Vite** SPA for tracking board game events, player stats, and leaderboards. Backend: **Firebase** (Firestore, Auth, Storage). Styling: **Tailwind CSS v4** via Vite plugin (not PostCSS).
 
-**Feature-based structure**: Domain-driven folders (`features/players`, `features/games`, `features/events`, `features/stats`, `features/leaderboard`) + shared utilities in `common/`.
+**Feature-based structure**: Domain-driven folders (`features/players`, `features/games`, `features/events`, `features/stats`, `features/leaderboard`, `features/dashboard`, `features/users`) + shared utilities in `common/`.
 
 **Routing**: React Router v7 (from `react-router` package) routes defined inline in [src/main.tsx](src/main.tsx). All forms/modals are JSX components, not separate routes.
 
@@ -68,143 +78,214 @@ isPlayerWinner = (result) => result.isWinner || result.rank === 1;
 
 ## Import Path Convention
 
-**Use absolute imports from `src/`** (enabled via `vite-tsconfig-paths` plugin + `"baseUrl": "src"` in `tsconfig.app.json`):
+**Use absolute imports from `src/`** (via `vite-tsconfig-paths` plugin):
 
 ```typescript
-// ✅ Correct
-import { usePlayers } from "features/players/context/PlayersContext";
-import { getDisplayName } from "features/players/utils/helpers";
-
-// ❌ Avoid relative paths
-import { usePlayers } from "../../../features/players/context/PlayersContext";
+import { usePlayers } from "features/players/context/PlayersContext"; // ✅
+import { usePlayers } from "../../../features/players/context/PlayersContext"; // ❌
 ```
 
 ## Context Access Pattern
 
-**Each feature has its own context hooks** (e.g., `useUsers()`, `usePlayers()`, `useGames()`, `useEvents()`, `useResults()`). Access them via:
+**Each feature has its own context hooks** (e.g., `usePlayers()`, `useGames()`, `useEvents()`). All providers expose both array and Map for O(1) lookups:
 
 ```typescript
-import { usePlayers } from "features/players/context/PlayersContext";
 const { players, playerById, addPlayer, editPlayer, deletePlayer } = usePlayers();
+// Use createMapBy() helper from common/utils/helpers.ts for custom Maps
 ```
-
-**Provider-to-Map pattern**: All providers expose both array (`players`) and Map (`playerById`) for O(1) lookups. Use `createMapBy` helper from [common/utils/helpers.ts](common/utils/helpers.ts) (note: named `createMapBy`, not `createMapById`).
 
 ## Authentication & Authorization
 
-**Role-based access control** via `AuthProvider` and `UsersProvider`:
+**Role-based access control** via `useAuth()`: `{ authUser, user, isAdmin, canEdit, currentUserPlayerId }`
 
-```typescript
-import { useAuth } from "common/context/AuthContext";
-const { authUser, user, isAdmin, canEdit, currentUserPlayerId } = useAuth();
-// authUser = Firebase Auth user
-// user = IUser with role
-// isAdmin = computed boolean (user?.role === "admin")
-// canEdit = computed boolean (currently same as isAdmin)
-// currentUserPlayerId = computed string | null (user?.linkedPlayerId)
-```
+**Permissions**: Unauthenticated (read-only) | Users (edit linked player) | Admins (full CRUD)
 
-**Permission model**:
+**UI pattern**: `{isAdmin && <Button onClick={handleEdit}>Edit</Button>}`
 
-- **Unauthenticated**: Read-only access to all data
-- **Users (role: "user")**: Can edit their linked player profile
-- **Admins (role: "admin")**: Full CRUD on all collections
+**First admin setup**: See [AUTH_SETUP.md](../AUTH_SETUP.md).
 
-**UI pattern**: Use `isAdmin` to conditionally render edit/delete buttons:
+## Modal System & Notifications
 
-```typescript
-const { isAdmin } = useAuth();
-{isAdmin && <Button onClick={handleEdit}>Edit</Button>}
-```
-
-**First admin setup**: See [AUTH_SETUP.md](../AUTH_SETUP.md) for manual Firestore initialization.
-
-## Modal System
-
-**Global modal controlled by `ModalProvider`** (see [common/context/ModalProvider.tsx](common/context/ModalProvider.tsx)):
+**Modal**: Global modal via `ModalProvider`. Forms render as modal content, not separate routes.
+**Toast**: Use `useToast()` hook for success/error messages.
 
 ```typescript
 const { openModal, closeModal } = useModal();
+const toast = useToast();
 openModal(<PlayerForm onSubmit={handleSubmit} />);
-```
-
-Forms are rendered as modal content, not separate routes. See [features/players/pages/PlayersList.tsx](features/players/pages/PlayersList.tsx) for reference.
-**Toast notifications** via `useToast()` hook:
-
-```typescript
-import { useToast } from "common/context/ToastContext";
-const { showToast } = useToast();
-showToast("Player added successfully", "success");
+toast.success("Player added successfully");
 ```
 
 ## Year Filtering Pattern
 
-**Global year filter managed by `UIProvider`** (see [common/context/UIProvider.tsx](common/context/UIProvider.tsx)):
-
-- `selectedYear` state defaults to most recent year from events on initial load
-- Set to `null` for "All Years" view
-- Use filtering utilities from [common/utils/yearFilter.ts](common/utils/yearFilter.ts):
-    - `filterEventsByYear(events, year)` - Filter events by year
-    - `filterResultsByYear(results, events, year)` - Filter results based on event dates
-    - `getAvailableYears(events)` - Extract unique years, sorted descending
-
-**Access pattern**:
+**Global year filter via `UIProvider`**. Utilities in [common/utils/yearFilter.ts](common/utils/yearFilter.ts): `filterEventsByYear()`, `filterResultsByYear()`, `getAvailableYears()`.
 
 ```typescript
 const { selectedYear, setSelectedYear, availableYears } = useUI();
-const filteredEvents = filterEventsByYear(events, selectedYear);
 ```
 
 ## Stats & Aggregation
 
-**Player stats are computed on-the-fly** in [features/players/utils/stats.ts](features/players/utils/stats.ts). Key functions:
+**Player stats computed on-the-fly** in [features/players/utils/stats.ts](features/players/utils/stats.ts): `getPlayerData()`, `getPlayerAggregates()`, `getHeadToHeadRecord()`.
 
-- `getPlayerData()`: Calculates wins, games played, win rate, points from results
-- `getPlayerAggregates()`: Game-specific stats, rank distribution, recent form
-- `getHeadToHeadRecord()`: Player vs player matchups
-  **Dark mode**: Toggle via `.dark` class on `document.documentElement`, managed by `UIProvider`
-- **Always filter results by player/game** before aggregating to avoid expensive full-table scans.
+**Always filter results by player/game** before aggregating to avoid full-table scans.
 
-## Styling with Tailwind v4
+## UI Design System & Consistency
 
-Uses **Tailwind CSS v4** (imported via Vite plugin, not PostCSS):
+**Tailwind CSS v4** via Vite plugin. Colors defined as CSS variables in [src/index.css](src/index.css). Player colors are hex strings applied via inline styles.
 
-- Custom colors via CSS variables in [src/index.css](src/index.css): `--color-primary`, `--color-secondary`, `--color-bg`, `--color-surface`, `--color-text`
-- Player colors stored as hex strings in database and applied via inline styles
-- Responsive grid layouts: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3`
-- Use `@theme` directive in CSS for defining design tokens (see [src/index.css](src/index.css))
+**CRITICAL**: All UI components must follow these exact design tokens for consistency. Never introduce new spacing, sizing, or color values without updating the system.
+
+### Color System
+
+**Always use CSS custom properties for colors** - never hardcode colors except for player-specific colors:
+
+```typescript
+// ✅ Correct - Uses design system
+className = "bg-[var(--color-surface)] text-[var(--color-text)]";
+
+// ❌ Wrong - Hardcoded colors
+className = "bg-gray-100 text-black";
+```
+
+**Color Variables** (defined in [src/index.css](src/index.css)):
+
+- **Primary/Secondary**: `--color-primary`, `--color-secondary` (+ `*-contrast` variants)
+- **Backgrounds**: `--color-bg` (page), `--color-surface` (cards), `--color-hover`
+- **Text**: `--color-text`, `--color-text-secondary`, `--color-text-muted`
+- **Borders**: `--color-border`, `--color-border-strong`
+- **Semantic**: `--color-success`, `--color-danger`, `--color-warning`, `--color-info` (+ `*-contrast` variants)
+- **Rankings**: `--color-gold`, `--color-silver`, `--color-bronze` (+ `*-contrast` variants)
+
+### Typography Scale
+
+**Font sizes** - Use these exact classes consistently:
+
+- `text-xs` (12px) - Labels, metadata, helper text
+- `text-sm` (14px) - Body text, form inputs, buttons
+- `text-base` (16px) - Headings in cards, important labels
+- `text-lg` (18px) - Page titles (mobile)
+- `text-xl` (20px) - Page titles (desktop), section headings
+- `text-2xl` (24px) - Large stats, hero numbers
+- `text-3xl`+ - Reserved for special emphasis only
+
+**Font weights**:
+
+- `font-normal` (400) - Default body text
+- `font-medium` (500) - Subtle emphasis, labels
+- `font-semibold` (600) - Subheadings, important values
+- `font-bold` (700) - Page titles, primary headings
+
+**Font families**:
+
+- `font-sans` (Inter) - Default for all UI
+- `font-display` (Righteous) - Currently unused, reserved for special branding
+
+### Spacing System
+
+**Use these spacing values consistently**:
+
+- **Gaps between elements**: `gap-1` (4px), `gap-2` (8px), `gap-3` (12px), `gap-4` (16px), `gap-6` (24px)
+- **Padding**: `p-3` (12px), `p-4` (16px), `p-6` (24px) - Cards typically use `p-4 sm:p-6`
+- **Margins**: `mb-3`, `mb-4` (12px/16px) - Section spacing, `mt-6` (24px) - Large section breaks
+- **Responsive**: Use `sm:`, `md:`, `lg:` prefixes to adjust spacing at breakpoints
+
+**Common patterns**: Cards use `p-4 sm:p-6`, grids use `gap-4`, sections use `mb-4 sm:mb-6`.
+
+### Component Patterns
+
+**Reusable components** (from [common/components/](common/components/)):
+
+1. **Button** - `variant`: "primary" | "secondary" | "ghost" | "danger", `size`: "sm" | "md" | "lg"
+2. **Card** - `variant`: "default" | "interactive" | "empty"
+3. **Badge** - `variant`: "default" | "primary" | "secondary" | "success" | "warning" | "danger" | "info"
+4. **Input** - Standardized form input with error states
+5. **Select** - Dropdown with consistent styling
+6. **PageHeader** - Icon + title + count + optional action button
+7. **EmptyState** - Icon + message for empty lists
+8. **Modal** - Global modal via `ModalProvider`
+
+**Always use these components instead of creating custom variants**. If a component needs modification, update the base component or discuss whether a new variant is needed.
+
+### Layout Patterns
+
+**Page structure**: Use `PageHeader` + responsive grid (`grid gap-4 md:grid-cols-2 lg:grid-cols-3`).
+**Forms**: Use `m-0 flex flex-col gap-4 p-0` for consistent field spacing.
+
+### Responsive Design
+
+**Mobile-first approach**. Always define mobile styles first, then use breakpoints:
+
+- `sm:` (640px+) - Tablets
+- `md:` (768px+) - Small laptops
+- `lg:` (1024px+) - Desktops
+
+**Common patterns**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-3`, `text-sm md:text-base`, `p-4 sm:p-6`, `gap-4 sm:gap-6`
+
+### Dark Mode
+
+Handled automatically by CSS custom properties. The `UIProvider` toggles `.dark` class on `document.documentElement`, which updates all `--color-*` variables.
+
+**Never use dark: prefix in Tailwind** - colors automatically adapt via custom properties.
 
 ## Firebase Integration
 
-**Firebase config is in [src/firebase.ts](src/firebase.ts)** (exports `db`, `auth`, `storage`).
+**Config**: [src/firebase.ts](src/firebase.ts) exports `db`, `auth`, `storage`.
 
-**Real-time listeners pattern** (see [features/players/context/PlayersProvider.tsx](features/players/context/PlayersProvider.tsx) for reference):
-
-```typescript
-useEffect(() => {
-	const unsubscribe = onSnapshot(collection(db, "players"), (snapshot) => {
-		const data = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-		setPlayers(data);
-		setLoading(false); // Always update loading state
-	});
-	return () => unsubscribe();
-}, []);
-```
-
-**Image uploads** use Firebase Storage with cache control headers (see `PlayersProvider.uploadImage`).
+**Real-time listeners**: Use `onSnapshot()` for live sync. Always update `loading` state. Image uploads use Firebase Storage with cache control headers.
 
 ## Development Workflow
 
-**Commands** (from [package.json](package.json)):
+**Commands**: `npm run dev` (port 5173), `npm run build`, `npm run lint`, `npm run preview`
 
-- `npm run dev` - Start Vite dev server (default port 5173)
-- `npm run build` - TypeScript compile + Vite production build
-- `npm run lint` - ESLint check
-- `npm run preview` - Preview production build locally
+**Deployment**: AWS S3 + CloudFront via CodeBuild. Husky + lint-staged runs Prettier/ESLint on commit.
 
-**Deployment**: AWS S3 + CloudFront via [buildspec.yml](buildspec.yml) (CodeBuild pipeline). Invalidates `/index.html` after deploy.
+## Code Organization & File Structure
 
-**Git hooks**: Husky + lint-staged runs Prettier and ESLint on staged files before commit.
+**Feature Structure** - Each feature follows this exact pattern:
+
+```
+features/{feature-name}/
+  ├── components/       # Feature-specific UI components
+  ├── context/          # Feature context and provider
+  ├── pages/            # Feature pages/views
+  ├── utils/            # Feature-specific utilities
+  │   ├── helpers.ts    # Utility functions
+  │   ├── stats.ts      # Statistical calculations (if applicable)
+  │   ├── hooks.ts      # Custom hooks (if applicable)
+  │   └── calculations/ # Complex calculations (if needed)
+  └── types.d.ts        # TypeScript interfaces/types
+```
+
+**Common Structure** - Shared/reusable code:
+
+```
+common/
+  ├── components/       # Reusable UI components (Button, Card, Modal, etc.)
+  │   └── index.ts      # Centralized exports
+  ├── context/          # Global contexts (Auth, UI, Modal, Toast)
+  ├── utils/            # Shared utilities
+  │   ├── constants.ts  # App-wide constants and thresholds
+  │   ├── helpers.ts    # General utility functions
+  │   ├── dateFormatters.ts
+  │   ├── gameHelpers.ts
+  │   ├── sorting.ts
+  │   ├── validation.ts
+  │   ├── yearFilter.ts
+  │   └── hooks.ts      # Shared custom hooks
+  └── types/            # Global type definitions
+```
+
+**File Placement Rules**:
+
+1. **Component belongs to a feature?** → Put it in `features/{feature}/components/`
+2. **Component used in 2+ features?** → Move to `common/components/` and add to index.ts
+3. **Utility function specific to a feature?** → `features/{feature}/utils/helpers.ts`
+4. **Utility function used across features?** → `common/utils/helpers.ts`
+5. **Type used only in one feature?** → `features/{feature}/types.d.ts`
+6. **Type used globally?** → `common/types/` or appropriate feature type file with export
+
+**Never duplicate code**. If logic exists elsewhere, import and reuse it.
 
 ## Common Patterns to Follow
 
@@ -216,6 +297,76 @@ useEffect(() => {
 6. **Form validation**: Use `react-hook-form` with `zodResolver` from `@hookform/resolvers/zod` for schema validation
 7. **Error handling**: All components wrapped in `ErrorBoundary` (see [common/components/ErrorBoundary.tsx](common/components/ErrorBoundary.tsx))
 8. **Percentage formatting**: Use `formatPct()` from [common/utils/helpers.ts](common/utils/helpers.ts) (rounds to whole number)
+
+## Code Quality Standards
+
+### Component Structure
+
+**Standard pattern**: Import dependencies → types → props interface → component with hooks → handlers → effects → JSX. Use `React.FC<Props>` for all components.
+
+### TypeScript Best Practices
+
+1. **Always define interfaces for props** - No inline prop types
+2. **Use type imports**: `import type { IPlayer } from "..."`
+3. **Prefix interfaces with `I`** for data models: `IPlayer`, `IGame`, `IEvent`
+4. **Export types from feature `types.d.ts` files**
+5. **Use `React.FC<Props>` for function components**
+6. **Avoid `any`** - Use proper types or `unknown` with type guards
+
+### Function Naming
+
+- **Event handlers**: `handleActionName` (e.g., `handleAddPlayer`, `handleEdit`)
+- **Boolean functions**: `isCondition` or `hasCondition` (e.g., `isPlayerWinner`, `hasPermission`)
+- **Data transformers**: `getDataName` or `calculateValue` (e.g., `getPlayerData`, `calculateWinRate`)
+- **Filters**: `filterByCondition` (e.g., `filterEventsByYear`)
+
+### State Management
+
+1. **Context for shared state** - Each feature has its own provider
+2. **Local state for UI** - Form inputs, modal visibility, etc.
+3. **No prop drilling** - Use context if passing props more than 2 levels deep
+4. **Computed values** - Use `useMemo` for expensive calculations only
+
+### Error Handling
+
+```typescript
+// ✅ Correct - Proper error handling with user feedback
+try {
+	await addPlayer(player);
+	toast.success("Player added successfully");
+	closeModal();
+} catch (error) {
+	toast.error("Failed to add player");
+	throw error; // Re-throw if parent needs to know
+}
+
+// ❌ Wrong - Silent failures
+await addPlayer(player);
+closeModal();
+```
+
+### Performance Considerations
+
+1. **Use Map for lookups** - All providers expose `*ById` Maps (e.g., `playerById.get(id)`)
+2. **Filter before aggregating** - Don't process full result sets unnecessarily
+3. **Memoize expensive calculations** - Use `useMemo` for complex stats
+4. **Lazy load heavy components** - Charts, images, etc.
+5. **Debounce user input** - Search boxes, filters
+
+### Testing Checklist
+
+Before committing any code, verify:
+
+- ✅ TypeScript compiles without errors (`npm run build`)
+- ✅ ESLint passes (`npm run lint`)
+- ✅ Component renders correctly at mobile, tablet, desktop sizes
+- ✅ Dark mode works correctly
+- ✅ Loading states handled
+- ✅ Empty states handled
+- ✅ Error states handled
+- ✅ Accessibility (keyboard navigation, ARIA labels where needed)
+- ✅ No console errors/warnings
+- ✅ Matches existing UI patterns and spacing
 
 ## Key Files Reference
 
